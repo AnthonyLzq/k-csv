@@ -1,0 +1,1 @@
+export { firebaseConnection } from './firebase'

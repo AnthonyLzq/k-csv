@@ -1,0 +1,120 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "k-csv",
+    "description": "Documentation of the test",
+    "contact": {
+      "email": "sluzquinosa@uni.pe"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    },
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:1996/api",
+      "description": "k-csv local API"
+    }
+  ],
+  "tags": [
+    {
+      "name": "csv",
+      "description": "Operations related to the csv"
+    }
+  ],
+  "paths": {
+    "/csv": {
+      "post": {
+        "tags": [
+          "csv"
+        ],
+        "summary": "Upload a new csv to replace the last one",
+        "operationId": "upload",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/DtoCsv"
+        },
+        "responses": {
+          "200": {
+            "description": "User successfully stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefaultSuccess"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefaultError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefaultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "DefaultSuccess": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "boolean",
+            "default": false
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "DefaultError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "boolean",
+            "default": true
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "requestBodies": {
+      "DtoCsv": {
+        "description": "Csv file",
+        "content": {
+          "multipart/form-data": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "fileName": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        },
+        "required": true
+      }
+    }
+  }
+}
