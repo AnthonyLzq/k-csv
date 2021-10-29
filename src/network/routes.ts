@@ -1,5 +1,5 @@
 import { Application, Response, Request, Router, NextFunction } from 'express'
-// import swaggerUi from 'swagger-ui-express'
+import swaggerUi from 'swagger-ui-express'
 import httpErrors from 'http-errors'
 
 import { Home, Csv } from '../routes'
@@ -9,7 +9,7 @@ const routers = [Csv]
 
 const applyRoutes = (app: Application): void => {
   app.use('/', Home)
-  // app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(docs))
+  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(docs))
   routers.forEach((router: Router): Application => app.use('/api', router))
 
   // Handling 404 error
