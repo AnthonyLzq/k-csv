@@ -29,7 +29,18 @@ class Csv {
   async #upload(): Promise<string> {
     try {
       const bucket = getStorage().bucket()
-      const blob = bucket.file(this.#args.name)
+      const files = (await bucket.getFiles())[0]
+
+      await Promise.all(files.map(f => f.delete()))
+
+      const fileName = this.#args.name.split('.')[0]
+      const timezone = Intl.DateTimeFormat()
+        .resolvedOptions()
+        .timeZone.replace(/\//g, '\\')
+      const timeOffSet = new Date().getTimezoneOffset()
+      const uploadTime = new Date(new Date().getTime() - timeOffSet * 60000)
+      const finalDate = `${uploadTime.toISOString()}_${timezone}`
+      const blob = bucket.file(`${fileName}_${finalDate}`)
       const blobWriter = blob.createWriteStream({
         metadata: {
           contentType: this.#args.mimetype
@@ -47,7 +58,7 @@ class Csv {
         blobWriter.end(this.#args.data)
       })
 
-      return 'Csv uploaded successfully'
+      return `Csv uploaded successfully at ${finalDate}`
     } catch (e) {
       return errorHandling(e, GE.INTERNAL_SERVER_ERROR)
     }
