@@ -1,26 +1,29 @@
 import httpErrors from 'http-errors'
+import csv from 'csvtojson'
 import { getStorage } from 'firebase-admin/storage'
 
 import { DtoCsv } from '../dto-interfaces'
-import { GE, errorHandling } from './utils'
+import { EFC, MFC, GE, errorHandling } from './utils'
 
 type Process = {
   type: 'upload' | 'download'
 }
 
 class Csv {
-  #args: DtoCsv
+  #args: DtoCsv | null
 
-  constructor(args: DtoCsv) {
+  constructor(args: DtoCsv | null = null) {
     this.#args = args
   }
 
   // eslint-disable-next-line consistent-return
-  public process({ type }: Process): Promise<string> {
+  public process({ type }: Process): Promise<string | unknown[]> {
     // eslint-disable-next-line default-case
     switch (type) {
       case 'upload':
         return this.#upload()
+      case 'download':
+        return this.#download()
       default:
         throw new httpErrors.InternalServerError(GE.INTERNAL_SERVER_ERROR)
     }
@@ -28,12 +31,16 @@ class Csv {
 
   async #upload(): Promise<string> {
     try {
+      if (!this.#args)
+        throw new httpErrors.InternalServerError(GE.INTERNAL_SERVER_ERROR)
+
+      const { name, mimetype, data } = this.#args
       const bucket = getStorage().bucket()
       const files = (await bucket.getFiles())[0]
 
       await Promise.all(files.map(f => f.delete()))
 
-      const fileName = this.#args.name.split('.')[0]
+      const fileName = name.split('.')[0]
       const timezone = Intl.DateTimeFormat()
         .resolvedOptions()
         .timeZone.replace(/\//g, '\\')
@@ -43,7 +50,7 @@ class Csv {
       const blob = bucket.file(`${fileName}_${finalDate}`)
       const blobWriter = blob.createWriteStream({
         metadata: {
-          contentType: this.#args.mimetype
+          contentType: mimetype
         }
       })
 
@@ -55,10 +62,31 @@ class Csv {
 
         blobWriter.on('finish', () => resolve())
 
-        blobWriter.end(this.#args.data)
+        blobWriter.end(data)
       })
 
-      return `Csv uploaded successfully at ${finalDate}`
+      return `${MFC.UPLOAD_SUCCESS}${finalDate}`
+    } catch (e) {
+      return errorHandling(e, GE.INTERNAL_SERVER_ERROR)
+    }
+  }
+
+  async #download(): Promise<unknown[]> {
+    try {
+      const bucket = getStorage().bucket()
+      const files = (await bucket.getFiles())[0]
+
+      if (files.length === 0)
+        throw new httpErrors.Conflict(EFC.MISSING_CSV)
+
+      const file = files[0]
+      const readableStream = file.createReadStream()
+      const resultInJson = await csv({
+        delimiter: [';', ','],
+        trim     : true
+      }).fromStream(readableStream)
+
+      return resultInJson
     } catch (e) {
       return errorHandling(e, GE.INTERNAL_SERVER_ERROR)
     }
