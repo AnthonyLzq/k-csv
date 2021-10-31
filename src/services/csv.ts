@@ -1,6 +1,7 @@
 import fs from 'fs'
 import httpErrors from 'http-errors'
 import csv from 'csvtojson'
+import papaparse from 'papaparse'
 // import { getStorage } from 'firebase-admin/storage'
 
 import { DtoCsv } from '../dto-interfaces'
@@ -110,6 +111,24 @@ class Csv {
           else for (const file of files) resolve(file)
         })
       })
+      const readStream = fs.createReadStream(`${this.#filePath}${csvFile}`)
+      const parseStream = papaparse.parse(papaparse.NODE_STREAM_INPUT, {
+        delimiter: ';'
+      })
+      const data: unknown[] = []
+
+      await new Promise<void>((resolve, reject) => {
+        readStream.pipe(parseStream)
+
+        parseStream.on('data', chunk => data.push(chunk))
+
+        parseStream.on('error', e => {
+          console.error(e)
+          reject()
+        })
+
+        parseStream.on('finish', () => resolve())
+      })
       // const bucket = getStorage().bucket()
       // const files = (await bucket.getFiles())[0]
 
@@ -117,12 +136,11 @@ class Csv {
 
       // const file = files[0]
       // const readableStream = file.createReadStream()
-      const resultInJson = await csv({
-        delimiter: [';', ','],
-        trim     : true
-      }).fromFile(`${this.#filePath}${csvFile}`)
-
-      return resultInJson
+      // const resultInJson = await csv({
+      //   delimiter: [';', ','],
+      //   trim     : true
+      // }).fromFile(`${this.#filePath}${csvFile}`)
+      return data
     } catch (e) {
       return errorHandling(e, GE.INTERNAL_SERVER_ERROR)
     }
