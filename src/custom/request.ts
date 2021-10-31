@@ -1,3 +1,4 @@
+import { IncomingHttpHeaders } from 'http'
 import { Request } from 'express'
 
 /*
@@ -5,6 +6,10 @@ import { Request } from 'express'
  * in case we need it.
  */
 
-interface CustomRequest extends Request { }
+interface CustomRequest extends Request {
+  headers      : IncomingHttpHeaders & {
+    'api-key'?: string
+  }
+}
 
 export { CustomRequest as Request }

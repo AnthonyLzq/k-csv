@@ -1,13 +1,13 @@
-import { Router, NextFunction } from 'express'
+import { Response, Router, NextFunction } from 'express'
 import { UploadedFile } from 'express-fileupload'
 import { ValidationError } from 'joi'
 import httpErrors from 'http-errors'
 
-import { Response, Request } from '../custom'
+import { Request } from '../custom'
 import { Csv as CsvC } from '../services'
 import { DtoCsv } from '../dto-interfaces'
 import { csvSchema } from '../schemas'
-import { response } from '../utils'
+import { response, verifyApiKeyExists, verifyCorrectApiKey } from '../utils'
 
 const Csv = Router()
 
@@ -19,6 +19,8 @@ const getFileObject = (input: UploadedFile | UploadedFile[]): UploadedFile => {
 
 Csv.route('/csv')
   .post(
+    verifyApiKeyExists,
+    verifyCorrectApiKey,
     async (req: Request, res: Response, next: NextFunction): Promise<void> => {
       if (req.files) {
         const { files } = req
@@ -48,6 +50,8 @@ Csv.route('/csv')
     }
   )
   .get(
+    verifyApiKeyExists,
+    verifyCorrectApiKey,
     async (req: Request, res: Response, next: NextFunction): Promise<void> => {
       try {
         const csv = new CsvC()
