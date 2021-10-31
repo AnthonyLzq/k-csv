@@ -13,6 +13,7 @@ class Server {
     this.#app = express()
     this.#port = process.env.PORT as string || '1996'
     this.#config()
+    console.log(process.memoryUsage())
   }
 
   #config() {
