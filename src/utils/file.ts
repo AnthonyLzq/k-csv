@@ -9,7 +9,7 @@ const csvToJson = (path: string): unknown[] => {
   for (let i = 1; i < array.length - 1; i++) {
     // Create an empty object to later add
     // values of the current row to it
-    const obj = {}
+    const obj: any = {}
 
     // Declare string str as current array
     // value to change the delimiter and
