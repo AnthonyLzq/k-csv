@@ -1,8 +1,8 @@
-import fs from 'fs'
+// import fs from 'fs'
 import httpErrors from 'http-errors'
-import csv from 'csvtojson'
+// import csv from 'csvtojson'
 import papaparse from 'papaparse'
-// import { getStorage } from 'firebase-admin/storage'
+import { getStorage } from 'firebase-admin/storage'
 
 import { DtoCsv } from '../dto-interfaces'
 import { EFC, MFC, GE, errorHandling } from './utils'
@@ -42,11 +42,11 @@ class Csv {
         throw new httpErrors.InternalServerError(GE.INTERNAL_SERVER_ERROR)
 
       const { name, mimetype, data } = this.#args
-      const fileType = mimetype.split('/')[1]
-      // const bucket = getStorage().bucket()
-      // const files = (await bucket.getFiles())[0]
+      // const fileType = mimetype.split('/')[1]
+      const bucket = getStorage().bucket()
+      const files = (await bucket.getFiles())[0]
 
-      // await Promise.all(files.map(f => f.delete()))
+      await Promise.all(files.map(f => f.delete()))
 
       const fileName = name.split('.')[0]
       const timezone = Intl.DateTimeFormat()
@@ -57,45 +57,44 @@ class Csv {
       const finalDate = `${uploadTime.toISOString()}_${timezone}`
       const finalName = `${fileName}_${finalDate}`
 
-      await new Promise<void>((resolve, reject) => {
-        fs.readdir(this.#filePath, (e, files) => {
-          if (e) reject(e)
-          else {
-            for (const file of files) fs.unlinkSync(`${this.#filePath}${file}`)
-            resolve()
-          }
-        })
-      })
-
-      await new Promise<void>((resolve, reject) => {
-        fs.writeFile(
-          `${this.#filePath}${finalName}.${fileType}`,
-          data,
-          'utf-8',
-          e => {
-            if (e) reject(e)
-            else resolve()
-          }
-        )
-      })
-      // fs.createWriteStream()
-      // const blob = bucket.file(`${fileName}_${finalDate}`)
-      // const blobWriter = blob.createWriteStream({
-      //   metadata: {
-      //     contentType: mimetype
-      //   }
+      // await new Promise<void>((resolve, reject) => {
+      //   fs.readdir(this.#filePath, (e, files) => {
+      //     if (e) reject(e)
+      //     else {
+      //       for (const file of files) fs.unlinkSync(`${this.#filePath}${file}`)
+      //       resolve()
+      //     }
+      //   })
       // })
 
       // await new Promise<void>((resolve, reject) => {
-      //   blobWriter.on('error', e => {
-      //     console.error(e)
-      //     reject(e)
-      //   })
-
-      //   blobWriter.on('finish', () => resolve())
-
-      //   blobWriter.end(data)
+      //   fs.writeFile(
+      //     `${this.#filePath}${finalName}.${fileType}`,
+      //     data,
+      //     'utf-8',
+      //     e => {
+      //       if (e) reject(e)
+      //       else resolve()
+      //     }
+      //   )
       // })
+      const blob = bucket.file(`${finalName}`)
+      const blobWriter = blob.createWriteStream({
+        metadata: {
+          contentType: mimetype
+        }
+      })
+
+      await new Promise<void>((resolve, reject) => {
+        blobWriter.on('error', e => {
+          console.error(e)
+          reject(e)
+        })
+
+        blobWriter.on('finish', () => resolve())
+
+        blobWriter.end(data)
+      })
 
       return `${MFC.UPLOAD_SUCCESS}${finalDate}`
     } catch (e) {
@@ -105,13 +104,21 @@ class Csv {
 
   async #download(): Promise<unknown[]> {
     try {
-      const csvFile = await new Promise<string>((resolve, reject) => {
-        fs.readdir(this.#filePath, (e, files) => {
-          if (e) reject(e)
-          else for (const file of files) resolve(file)
-        })
-      })
-      const readStream = fs.createReadStream(`${this.#filePath}${csvFile}`)
+      const bucket = getStorage().bucket()
+      const files = (await bucket.getFiles())[0]
+
+      if (files.length === 0) throw new httpErrors.Conflict(EFC.MISSING_CSV)
+
+      const file = files[0]
+      const readStream = file.createReadStream()
+
+      // const csvFile = await new Promise<string>((resolve, reject) => {
+      //   fs.readdir(this.#filePath, (e, files) => {
+      //     if (e) reject(e)
+      //     else for (const file of files) resolve(file)
+      //   })
+      // })
+      // const readStream = fs.createReadStream(`${this.#filePath}${csvFile}`)
       const parseStream = papaparse.parse(papaparse.NODE_STREAM_INPUT, {
         delimiter: ';'
       })
@@ -129,13 +136,7 @@ class Csv {
 
         parseStream.on('finish', () => resolve())
       })
-      // const bucket = getStorage().bucket()
-      // const files = (await bucket.getFiles())[0]
 
-      // if (files.length === 0) throw new httpErrors.Conflict(EFC.MISSING_CSV)
-
-      // const file = files[0]
-      // const readableStream = file.createReadStream()
       // const resultInJson = await csv({
       //   delimiter: [';', ','],
       //   trim     : true

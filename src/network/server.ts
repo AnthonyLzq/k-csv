@@ -2,7 +2,7 @@ import express from 'express'
 import morgan from 'morgan'
 import upload from 'express-fileupload'
 
-// import { firebaseConnection } from '../database'
+import { firebaseConnection } from '../database'
 import { applyRoutes } from './routes'
 
 class Server {
@@ -45,11 +45,11 @@ class Server {
       console.log(`Server running at port ${this.#port}.`)
     )
 
-    // try {
-    //   firebaseConnection()
-    // } catch (e) {
-    //   console.error(e)
-    // }
+    try {
+      firebaseConnection()
+    } catch (e) {
+      console.error(e)
+    }
   }
 }
 
