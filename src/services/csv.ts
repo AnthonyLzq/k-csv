@@ -1,8 +1,7 @@
-import fs from 'fs'
+// import fs from 'fs'
 import httpErrors from 'http-errors'
-import csv from 'csvtojson'
-// import papaparse from 'papaparse'
-// import { getStorage } from 'firebase-admin/storage'
+import papaparse from 'papaparse'
+import { getStorage } from 'firebase-admin/storage'
 
 import { DtoCsv } from '../dto-interfaces'
 import { EFC, MFC, GE, errorHandling } from './utils'
@@ -42,11 +41,11 @@ class Csv {
         throw new httpErrors.InternalServerError(GE.INTERNAL_SERVER_ERROR)
 
       const { name, mimetype, data } = this.#args
-      const fileType = mimetype.split('/')[1]
-      // const bucket = getStorage().bucket()
-      // const files = (await bucket.getFiles())[0]
+      // const fileType = mimetype.split('/')[1]
+      const bucket = getStorage().bucket()
+      const files = (await bucket.getFiles())[0]
 
-      // await Promise.all(files.map(f => f.delete()))
+      await Promise.all(files.map(f => f.delete()))
 
       const fileName = name.split('.')[0]
       const timezone = Intl.DateTimeFormat()
@@ -57,29 +56,30 @@ class Csv {
       const finalDate = `${uploadTime.toISOString()}_${timezone}`
       const finalName = `${fileName}_${finalDate}`
 
-      await new Promise<void>((resolve, reject) => {
-        fs.readdir(this.#filePath, (e, files) => {
-          if (e) reject(e)
-          else {
-            for (const file of files) fs.unlinkSync(`${this.#filePath}${file}`)
-            resolve()
-          }
-        })
-      })
+      // await new Promise<void>((resolve, reject) => {
+      //   fs.readdir(this.#filePath, (e, files) => {
+      //     if (e) reject(e)
+      //     else {
+      //       for (const file of files) fs.unlinkSync(`${this.#filePath}${file}`)
+      //       resolve()
+      //     }
+      //   })
+      // })
 
-      await new Promise<void>((resolve, reject) => {
-        fs.writeFile(
-          `${this.#filePath}${finalName}.${fileType}`,
-          data,
-          'utf-8',
-          e => {
-            if (e) reject(e)
-            else resolve()
-          }
-        )
-      })
-      // const blob = bucket.file(`${finalName}`)
-      // const blobWriter = blob.createWriteStream({
+      // await new Promise<void>((resolve, reject) => {
+      //   fs.writeFile(
+      //     `${this.#filePath}${finalName}.${fileType}`,
+      //     data,
+      //     'utf-8',
+      //     e => {
+      //       if (e) reject(e)
+      //       else resolve()
+      //     }
+      //   )
+      // })
+      const file = bucket.file(`${finalName}`)
+      await file.save(data)
+      // const blobWriter = file.createWriteStream({
       //   metadata: {
       //     contentType: mimetype
       //   }
@@ -104,43 +104,37 @@ class Csv {
 
   async #download(): Promise<unknown[]> {
     try {
-      // const bucket = getStorage().bucket()
-      // const files = (await bucket.getFiles())[0]
+      const bucket = getStorage().bucket()
+      const files = (await bucket.getFiles())[0]
 
-      // if (files.length === 0) throw new httpErrors.Conflict(EFC.MISSING_CSV)
+      if (files.length === 0) throw new httpErrors.Conflict(EFC.MISSING_CSV)
 
-      // const file = files[0]
-      // const readStream = file.createReadStream()
+      const readStream = files[0].createReadStream()
 
-      const csvFile = await new Promise<string>((resolve, reject) => {
-        fs.readdir(this.#filePath, (e, files) => {
-          if (e) reject(e)
-          else for (const file of files) resolve(file)
-        })
-      })
-      // const readStream = fs.createReadStream(`${this.#filePath}${csvFile}`)
-      // const parseStream = papaparse.parse(papaparse.NODE_STREAM_INPUT, {
-      //   delimiter: ';'
-      // })
-      // const data: unknown[] = []
-
-      // await new Promise<void>((resolve, reject) => {
-      //   readStream.pipe(parseStream)
-
-      //   parseStream.on('data', chunk => data.push(chunk))
-
-      //   parseStream.on('error', e => {
-      //     console.error(e)
-      //     reject()
+      // const csvFile = await new Promise<string>((resolve, reject) => {
+      //   fs.readdir(this.#filePath, (e, files) => {
+      //     if (e) reject(e)
+      //     else for (const file of files) resolve(file)
       //   })
-
-      //   parseStream.on('finish', () => resolve())
       // })
+      // const readStream = fs.createReadStream(`${this.#filePath}${csvFile}`)
+      const parseStream = papaparse.parse(papaparse.NODE_STREAM_INPUT, {
+        delimiter: ';'
+      })
+      const data: unknown[] = []
 
-      const data = await csv({
-        delimiter: [';', ','],
-        trim     : true
-      }).fromFile(`${this.#filePath}${csvFile}`)
+      await new Promise<void>((resolve, reject) => {
+        readStream.pipe(parseStream)
+
+        parseStream.on('data', chunk => data.push(chunk))
+
+        parseStream.on('error', e => {
+          console.error(e)
+          reject()
+        })
+
+        parseStream.on('finish', () => resolve())
+      })
 
       return data
     } catch (e) {
