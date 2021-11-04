@@ -4,7 +4,7 @@ let client: RedisClient
 
 const redisConnection = () => {
   client = redis.createClient({
-    host: 'localhost',
+    host: '127.0.0.1',
     port: 6739
   })
 }
