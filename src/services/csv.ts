@@ -1,5 +1,5 @@
 import httpErrors from 'http-errors'
-import csv from 'csvtojson'
+import parse from 'papaparse'
 import { getStorage } from 'firebase-admin/storage'
 
 import { DtoCsv } from '../dto-interfaces'
@@ -47,22 +47,23 @@ class Csv {
       const timeOffSet = new Date().getTimezoneOffset()
       const uploadTime = new Date(new Date().getTime() - timeOffSet * 60000)
       const finalDate = `${uploadTime.toISOString()}_${timezone}`
-      const blob = bucket.file(`${fileName}_${finalDate}`)
-      const blobWriter = blob.createWriteStream({
+      const finalName = `${fileName}_${finalDate}`
+      const file = bucket.file(finalName)
+      const writeableStream = file.createWriteStream({
         metadata: {
           contentType: mimetype
         }
       })
 
       await new Promise<void>((resolve, reject) => {
-        blobWriter.on('error', e => {
+        writeableStream.on('error', e => {
           console.error(e)
           reject(e)
         })
 
-        blobWriter.on('finish', () => resolve())
+        writeableStream.on('finish', () => resolve())
 
-        blobWriter.end(data)
+        writeableStream.end(data)
       })
 
       return `${MFC.UPLOAD_SUCCESS}${finalDate}`
@@ -81,12 +82,25 @@ class Csv {
 
       const file = files[0]
       const readableStream = file.createReadStream()
-      const resultInJson = await csv({
-        delimiter: [';', ','],
-        trim     : true
-      }).fromStream(readableStream)
+      const parseStream = parse.parse(parse.NODE_STREAM_INPUT, {
+        delimiter: ';'
+      })
+      const data: unknown[] = []
 
-      return resultInJson
+      await new Promise<void>((resolve, reject) => {
+        readableStream.pipe(parseStream)
+
+        parseStream.on('data', chunk => data.push(chunk))
+
+        parseStream.on('error', e => {
+          console.error(e)
+          reject()
+        })
+
+        parseStream.on('finish', () => resolve())
+      })
+
+      return data
     } catch (e) {
       return errorHandling(e, GE.INTERNAL_SERVER_ERROR)
     }
