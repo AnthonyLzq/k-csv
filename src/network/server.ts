@@ -2,7 +2,7 @@ import express from 'express'
 import morgan from 'morgan'
 import upload from 'express-fileupload'
 
-import { firebaseConnection } from '../database'
+import { firebaseConnection, redisConnection } from '../database'
 import { applyRoutes } from './routes'
 
 class Server {
@@ -47,6 +47,7 @@ class Server {
 
     try {
       firebaseConnection()
+      redisConnection()
     } catch (e) {
       console.error(e)
     }

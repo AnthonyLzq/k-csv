@@ -1,8 +1,10 @@
 // import fs from 'fs'
+import { Readable } from 'stream'
 import httpErrors from 'http-errors'
 import papaparse from 'papaparse'
 import { getStorage } from 'firebase-admin/storage'
 
+import { redisClient } from '../database'
 import { DtoCsv } from '../dto-interfaces'
 import { EFC, MFC, GE, errorHandling } from './utils'
 
@@ -55,6 +57,7 @@ class Csv {
       const uploadTime = new Date(new Date().getTime() - timeOffSet * 60000)
       const finalDate = `${uploadTime.toISOString()}_${timezone}`
       const finalName = `${fileName}_${finalDate}`
+      redisClient.set('file', fileName)
 
       // await new Promise<void>((resolve, reject) => {
       //   fs.readdir(this.#filePath, (e, files) => {
@@ -104,12 +107,27 @@ class Csv {
 
   async #download(): Promise<unknown[]> {
     try {
+      const fileNameSaved = await new Promise<string | null>(
+        (resolve, reject) => {
+          redisClient.get('file', (e, reply) => {
+            if (e) reject()
+            else resolve(reply)
+          })
+        }
+      )
+      let readStream: Readable
       const bucket = getStorage().bucket()
-      const files = (await bucket.getFiles())[0]
 
-      if (files.length === 0) throw new httpErrors.Conflict(EFC.MISSING_CSV)
+      if (fileNameSaved) {
+        const [file] = await bucket.file(fileNameSaved).download()
+        readStream = Readable.from(file)
+      } else {
+        const files = (await bucket.getFiles())[0]
 
-      const readStream = files[0].createReadStream()
+        if (files.length === 0) throw new httpErrors.Conflict(EFC.MISSING_CSV)
+
+        readStream = files[0].createReadStream()
+      }
 
       // const csvFile = await new Promise<string>((resolve, reject) => {
       //   fs.readdir(this.#filePath, (e, files) => {
