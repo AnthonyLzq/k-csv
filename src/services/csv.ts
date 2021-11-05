@@ -52,7 +52,7 @@ class Csv {
       const fileName = name.split('.')[0]
       const timezone = Intl.DateTimeFormat()
         .resolvedOptions()
-        .timeZone.replace(/\//g, '\\')
+        .timeZone.replace(/\//g, '-')
       const timeOffSet = new Date().getTimezoneOffset()
       const uploadTime = new Date(new Date().getTime() - timeOffSet * 60000)
       const finalDate = `${uploadTime.toISOString()}_${timezone}`
@@ -65,14 +65,16 @@ class Csv {
         } else console.log(`Saved the file ${finalName}. Reply: ${reply}`)
       })
 
-      const { data: a, error } = await supabaseClient.storage
+      const { error: emptyError } = await supabaseClient.storage
+        .emptyBucket('k-csv-files')
+
+      if (emptyError) throw emptyError
+
+      const { error: uploadError } = await supabaseClient.storage
         .from('k-csv-files')
         .upload(finalName, data)
 
-      console.log(a)
-      if (error)
-        throw new httpErrors.InternalServerError(GE.INTERNAL_SERVER_ERROR)
-
+      if (uploadError) throw uploadError
 
       // await new Promise<void>((resolve, reject) => {
       //   fs.readdir(this.#filePath, (e, files) => {
