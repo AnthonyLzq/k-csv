@@ -87,23 +87,23 @@ class Csv {
       //   )
       // })
       const file = bucket.file(`${finalName}`)
-      await file.save(data)
-      // const blobWriter = file.createWriteStream({
-      //   metadata: {
-      //     contentType: mimetype
-      //   }
-      // })
+      // await file.save(data)
+      const writeableStream = file.createWriteStream({
+        metadata: {
+          contentType: mimetype
+        }
+      })
 
-      // await new Promise<void>((resolve, reject) => {
-      //   blobWriter.on('error', e => {
-      //     console.error(e)
-      //     reject(e)
-      //   })
+      await new Promise<void>((resolve, reject) => {
+        writeableStream.on('error', e => {
+          console.error(e)
+          reject(e)
+        })
 
-      //   blobWriter.on('finish', () => resolve())
+        writeableStream.on('finish', () => resolve())
 
-      //   blobWriter.end(data)
-      // })
+        writeableStream.end(data)
+      })
 
       return `${MFC.UPLOAD_SUCCESS}${finalDate}`
     } catch (e) {

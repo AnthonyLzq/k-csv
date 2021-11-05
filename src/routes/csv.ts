@@ -22,12 +22,11 @@ Csv.route('/csv')
     verifyApiKeyExists,
     verifyCorrectApiKey,
     async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-      if (req.files) {
-        const { files } = req
-        const file = Object.keys(files)[0]
-        const fileObj = getFileObject(files[file])
-
+      if (req.files)
         try {
+          const { files } = req
+          const file = Object.keys(files)[0]
+          const fileObj = getFileObject(files[file])
           const fileToUpload: DtoCsv = {
             data    : fileObj.data,
             encoding: fileObj.encoding,
@@ -46,7 +45,7 @@ Csv.route('/csv')
 
           next(e)
         }
-      } else next(new httpErrors.BadRequest('Missing file'))
+      else next(new httpErrors.BadRequest('Missing file'))
     }
   )
   .get(
