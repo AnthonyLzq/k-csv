@@ -1,10 +1,10 @@
-import fs from 'fs'
+// import fs from 'fs'
 import { Readable } from 'stream'
 import httpErrors from 'http-errors'
 import papaparse from 'papaparse'
 import { getStorage } from 'firebase-admin/storage'
 
-import { redisClient } from '../database'
+import { redisClient, supabaseClient } from '../database'
 import { DtoCsv } from '../dto-interfaces'
 import { EFC, MFC, GE, errorHandling } from './utils'
 
@@ -43,7 +43,7 @@ class Csv {
         throw new httpErrors.InternalServerError(GE.INTERNAL_SERVER_ERROR)
 
       const { name, mimetype, data } = this.#args
-      const fileType = mimetype.split('/')[1]
+      // const fileType = mimetype.split('/')[1]
       // const bucket = getStorage().bucket()
       // const files = (await bucket.getFiles())[0]
 
@@ -65,27 +65,36 @@ class Csv {
         } else console.log(`Saved the file ${finalName}. Reply: ${reply}`)
       })
 
-      await new Promise<void>((resolve, reject) => {
-        fs.readdir(this.#filePath, (e, files) => {
-          if (e) reject(e)
-          else {
-            for (const file of files) fs.unlinkSync(`${this.#filePath}${file}`)
-            resolve()
-          }
-        })
-      })
+      const { data: a, error } = await supabaseClient.storage
+        .from('k-csv-files')
+        .upload(finalName, data)
 
-      await new Promise<void>((resolve, reject) => {
-        fs.writeFile(
-          `${this.#filePath}${finalName}.${fileType}`,
-          data,
-          'utf-8',
-          e => {
-            if (e) reject(e)
-            else resolve()
-          }
-        )
-      })
+      console.log(a)
+      if (error)
+        throw new httpErrors.InternalServerError(GE.INTERNAL_SERVER_ERROR)
+
+
+      // await new Promise<void>((resolve, reject) => {
+      //   fs.readdir(this.#filePath, (e, files) => {
+      //     if (e) reject(e)
+      //     else {
+      //       for (const file of files) fs.unlinkSync(`${this.#filePath}${file}`)
+      //       resolve()
+      //     }
+      //   })
+      // })
+
+      // await new Promise<void>((resolve, reject) => {
+      //   fs.writeFile(
+      //     `${this.#filePath}${finalName}.${fileType}`,
+      //     data,
+      //     'utf-8',
+      //     e => {
+      //       if (e) reject(e)
+      //       else resolve()
+      //     }
+      //   )
+      // })
       // const file = bucket.file(`${finalName}`)
       // await file.save(data)
       // const writeableStream = file.createWriteStream({

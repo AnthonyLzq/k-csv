@@ -1,12 +1,13 @@
 import redis, { RedisClient } from 'redis'
 
-let client: RedisClient
+let redisClient: RedisClient
 
 const redisConnection = () => {
-  client = redis.createClient({
+  redisClient = redis.createClient({
     host: '127.0.0.1',
     port: 6379
   })
+  console.log('Redis connection established.')
 }
 
-export { redisConnection, client }
+export { redisConnection, redisClient }
