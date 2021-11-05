@@ -1,4 +1,4 @@
-// import fs from 'fs'
+import fs from 'fs'
 import { Readable } from 'stream'
 import httpErrors from 'http-errors'
 import papaparse from 'papaparse'
@@ -43,11 +43,11 @@ class Csv {
         throw new httpErrors.InternalServerError(GE.INTERNAL_SERVER_ERROR)
 
       const { name, mimetype, data } = this.#args
-      // const fileType = mimetype.split('/')[1]
-      const bucket = getStorage().bucket()
-      const files = (await bucket.getFiles())[0]
+      const fileType = mimetype.split('/')[1]
+      // const bucket = getStorage().bucket()
+      // const files = (await bucket.getFiles())[0]
 
-      await Promise.all(files.map(f => f.delete()))
+      // await Promise.all(files.map(f => f.delete()))
 
       const fileName = name.split('.')[0]
       const timezone = Intl.DateTimeFormat()
@@ -65,45 +65,45 @@ class Csv {
         } else console.log(`Saved the file ${finalName}. Reply: ${reply}`)
       })
 
-      // await new Promise<void>((resolve, reject) => {
-      //   fs.readdir(this.#filePath, (e, files) => {
-      //     if (e) reject(e)
-      //     else {
-      //       for (const file of files) fs.unlinkSync(`${this.#filePath}${file}`)
-      //       resolve()
-      //     }
-      //   })
-      // })
-
-      // await new Promise<void>((resolve, reject) => {
-      //   fs.writeFile(
-      //     `${this.#filePath}${finalName}.${fileType}`,
-      //     data,
-      //     'utf-8',
-      //     e => {
-      //       if (e) reject(e)
-      //       else resolve()
-      //     }
-      //   )
-      // })
-      const file = bucket.file(`${finalName}`)
-      // await file.save(data)
-      const writeableStream = file.createWriteStream({
-        metadata: {
-          contentType: mimetype
-        }
+      await new Promise<void>((resolve, reject) => {
+        fs.readdir(this.#filePath, (e, files) => {
+          if (e) reject(e)
+          else {
+            for (const file of files) fs.unlinkSync(`${this.#filePath}${file}`)
+            resolve()
+          }
+        })
       })
 
       await new Promise<void>((resolve, reject) => {
-        writeableStream.on('error', e => {
-          console.error(e)
-          reject(e)
-        })
-
-        writeableStream.on('finish', () => resolve())
-
-        writeableStream.end(data)
+        fs.writeFile(
+          `${this.#filePath}${finalName}.${fileType}`,
+          data,
+          'utf-8',
+          e => {
+            if (e) reject(e)
+            else resolve()
+          }
+        )
       })
+      // const file = bucket.file(`${finalName}`)
+      // await file.save(data)
+      // const writeableStream = file.createWriteStream({
+      //   metadata: {
+      //     contentType: mimetype
+      //   }
+      // })
+
+      // await new Promise<void>((resolve, reject) => {
+      //   writeableStream.on('error', e => {
+      //     console.error(e)
+      //     reject(e)
+      //   })
+
+      //   writeableStream.on('finish', () => resolve())
+
+      //   writeableStream.end(data)
+      // })
 
       return `${MFC.UPLOAD_SUCCESS}${finalDate}`
     } catch (e) {
