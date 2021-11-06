@@ -1,8 +1,8 @@
+/* eslint-disable no-extra-parens */
 // import fs from 'fs'
-import { Readable } from 'stream'
 import httpErrors from 'http-errors'
 import papaparse from 'papaparse'
-import { getStorage } from 'firebase-admin/storage'
+// import { getStorage } from 'firebase-admin/storage'
 
 import { redisClient, supabaseClient } from '../database'
 import { DtoCsv } from '../dto-interfaces'
@@ -65,8 +65,9 @@ class Csv {
         } else console.log(`Saved the file ${finalName}. Reply: ${reply}`)
       })
 
-      const { error: emptyError } = await supabaseClient.storage
-        .emptyBucket('k-csv-files')
+      const { error: emptyError } = await supabaseClient.storage.emptyBucket(
+        'k-csv-files'
+      )
 
       if (emptyError) throw emptyError
 
@@ -137,18 +138,40 @@ class Csv {
           })
         }
       )
-      let readStream: Readable
-      const bucket = getStorage().bucket()
+      let file: NodeJS.ReadableStream
+      // const bucket = getStorage().bucket()
 
       if (fileNameSaved) {
-        const [file] = await bucket.file(fileNameSaved).download()
-        readStream = Readable.from(file)
+        // const [file] = await bucket.file(fileNameSaved).download()
+        const { data, error: downloadError } = await supabaseClient.storage
+          .from('k-csv-files')
+          .download(fileNameSaved)
+
+        if (downloadError) throw downloadError
+
+        if (!data) throw new httpErrors.Conflict(EFC.MISSING_CSV)
+
+        file = data.stream()
       } else {
-        const files = (await bucket.getFiles())[0]
+        // const files = (await bucket.getFiles())[0]
+        const { data: files, error: listError } = await supabaseClient.storage
+          .from('k-csv-files')
+          .list()
 
-        if (files.length === 0) throw new httpErrors.Conflict(EFC.MISSING_CSV)
+        if (listError) throw listError
 
-        readStream = files[0].createReadStream()
+        if (!files || files.length === 0)
+          throw new httpErrors.Conflict(EFC.MISSING_CSV)
+
+        const { data, error: downloadError } = await supabaseClient.storage
+          .from('k-csv-files')
+          .download(files[0].name)
+
+        if (downloadError) throw downloadError
+
+        if (!data) throw new httpErrors.Conflict(EFC.MISSING_CSV)
+
+        file = data.stream()
       }
 
       // const csvFile = await new Promise<string>((resolve, reject) => {
@@ -164,7 +187,7 @@ class Csv {
       const data: unknown[] = []
 
       await new Promise<void>((resolve, reject) => {
-        readStream.pipe(parseStream)
+        file.pipe(parseStream)
 
         parseStream.on('data', chunk => data.push(chunk))
 
