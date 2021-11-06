@@ -1,8 +1,7 @@
 import httpErrors from 'http-errors'
-import parse from 'papaparse'
-import { getStorage } from 'firebase-admin/storage'
+import papa from 'papaparse'
 
-import { redisClient } from '../database'
+import { redisClient, supabaseClient } from '../database'
 import { DtoCsv } from '../dto-interfaces'
 import { EFC, MFC, GE, errorHandling } from './utils'
 
@@ -35,11 +34,7 @@ class Csv {
       if (!this.#args)
         throw new httpErrors.InternalServerError(GE.INTERNAL_SERVER_ERROR)
 
-      const { name, mimetype, data } = this.#args
-      const bucket = getStorage().bucket()
-      const files = (await bucket.getFiles())[0]
-
-      await Promise.all(files.map(f => f.delete()))
+      const { name, data } = this.#args
 
       const fileName = name.split('.')[0]
       const timezone = Intl.DateTimeFormat()
@@ -52,28 +47,22 @@ class Csv {
 
       redisClient.set('file', finalName, (e, reply) => {
         if (e) {
-          console.log('There was an error trying to store the file in redis')
+          console.log(EFC.REDIS_SET)
           console.error(e)
         } else console.log(`Saved the file ${finalName}. Reply: ${reply}`)
       })
 
-      const file = bucket.file(finalName)
-      const writeableStream = file.createWriteStream({
-        metadata: {
-          contentType: mimetype
-        }
-      })
+      const { error: emptyError } = await supabaseClient.storage.emptyBucket(
+        'k-csv-files'
+      )
 
-      await new Promise<void>((resolve, reject) => {
-        writeableStream.on('error', e => {
-          console.error(e)
-          reject(e)
-        })
+      if (emptyError) throw emptyError
 
-        writeableStream.on('finish', () => resolve())
+      const { error: uploadError } = await supabaseClient.storage
+        .from('k-csv-files')
+        .upload(finalName, data)
 
-        writeableStream.end(data)
-      })
+      if (uploadError) throw uploadError
 
       return `${MFC.UPLOAD_SUCCESS}${finalDate}`
     } catch (e) {
@@ -96,21 +85,47 @@ class Csv {
           })
         }
       )
-      const bucket = getStorage().bucket()
-      const files = (await bucket.getFiles())[0]
+      let file: NodeJS.ReadableStream
 
-      if (files.length === 0)
-        throw new httpErrors.Conflict(EFC.MISSING_CSV)
+      if (fileNameSaved) {
+        const { data, error: downloadError } = await supabaseClient.storage
+          .from('k-csv-files')
+          .download(fileNameSaved)
 
-      const file = files[0]
-      const readableStream = file.createReadStream()
-      const parseStream = parse.parse(parse.NODE_STREAM_INPUT, {
+        if (downloadError) throw downloadError
+
+        if (!data) throw new httpErrors.Conflict(EFC.MISSING_CSV)
+
+        file = data.stream()
+      } else {
+        const { data: files, error: listError } = await supabaseClient.storage
+          .from('k-csv-files')
+          .list()
+
+        if (listError) throw listError
+
+        if (!files || files.length === 0)
+          throw new httpErrors.Conflict(EFC.MISSING_CSV)
+
+        const { data, error: downloadError } = await supabaseClient.storage
+          .from('k-csv-files')
+          .download(files[0].name)
+
+        if (downloadError) throw downloadError
+
+        if (!data) throw new httpErrors.Conflict(EFC.MISSING_CSV)
+
+        file = data.stream()
+      }
+
+
+      const parseStream = papa.parse(papa.NODE_STREAM_INPUT, {
         delimiter: ';'
       })
       const data: unknown[] = []
 
       await new Promise<void>((resolve, reject) => {
-        readableStream.pipe(parseStream)
+        file.pipe(parseStream)
 
         parseStream.on('data', chunk => data.push(chunk))
 
