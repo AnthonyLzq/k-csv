@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.3.0](https://github.com/AnthonyLzq/k-csv/compare/v0.2.0...v0.3.0) (2021-11-06)
+
+
+### Features
+
+* implemented redis ([b425f25](https://github.com/AnthonyLzq/k-csv/commit/b425f255011351d6e3076e2d0755ce51d0344935))
+* implemented supabase ([fd11432](https://github.com/AnthonyLzq/k-csv/commit/fd1143294480a901fbf701779a1666d6d46038c3))
+* removed firebase ([8765e0c](https://github.com/AnthonyLzq/k-csv/commit/8765e0cd05ddc61ca2f670aece40353e9b36d8a7))
+
 ## [0.2.0](https://github.com/AnthonyLzq/k-csv/compare/v0.1.0...v0.2.0) (2021-11-06)
 
 
