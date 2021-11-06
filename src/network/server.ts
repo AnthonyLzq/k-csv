@@ -3,7 +3,6 @@ import morgan from 'morgan'
 import upload from 'express-fileupload'
 
 import {
-  firebaseConnection,
   redisConnection,
   supabaseConnection
 } from '../database'
@@ -50,7 +49,6 @@ class Server {
     )
 
     try {
-      firebaseConnection()
       redisConnection()
       supabaseConnection()
     } catch (e) {
