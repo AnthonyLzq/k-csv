@@ -2,6 +2,7 @@ import httpErrors from 'http-errors'
 import parse from 'papaparse'
 import { getStorage } from 'firebase-admin/storage'
 
+import { redisClient } from '../database'
 import { DtoCsv } from '../dto-interfaces'
 import { EFC, MFC, GE, errorHandling } from './utils'
 
@@ -48,6 +49,14 @@ class Csv {
       const uploadTime = new Date(new Date().getTime() - timeOffSet * 60000)
       const finalDate = `${uploadTime.toISOString()}_${timezone}`
       const finalName = `${fileName}_${finalDate}`
+
+      redisClient.set('file', finalName, (e, reply) => {
+        if (e) {
+          console.log('There was an error trying to store the file in redis')
+          console.error(e)
+        } else console.log(`Saved the file ${finalName}. Reply: ${reply}`)
+      })
+
       const file = bucket.file(finalName)
       const writeableStream = file.createWriteStream({
         metadata: {
@@ -74,6 +83,19 @@ class Csv {
 
   async #download(): Promise<unknown[]> {
     try {
+      const fileNameSaved = await new Promise<string | null>(
+        (resolve, reject) => {
+          redisClient.get('file', (e, reply) => {
+            if (e) {
+              console.log('There was not any file stored in redis')
+              reject()
+            } else {
+              console.log(`File ${reply} was stored in redis`)
+              resolve(reply)
+            }
+          })
+        }
+      )
       const bucket = getStorage().bucket()
       const files = (await bucket.getFiles())[0]
 
