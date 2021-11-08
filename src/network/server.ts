@@ -30,13 +30,10 @@ class Server {
         res: express.Response,
         next: express.NextFunction
       ) => {
-        res.header('Access-Control-Allow-Headers', 'Try to guess, bro')
+        res.header('Access-Control-Allow-Headers', ['api-key', 'content-type'])
         res.header('X-Powered-By', 'Blood, sweat, and tears')
-        res.header('Access-Control-Allow-Methods', 'Some cool methods')
-        res.header(
-          'Access-Control-Allow-Origin',
-          'From somewhere in the universe'
-        )
+        res.header('Access-Control-Allow-Methods', 'GET, POST')
+        res.header('Access-Control-Allow-Origin', '*')
         next()
       }
     )

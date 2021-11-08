@@ -1,5 +1,6 @@
 import { Response, Router, NextFunction } from 'express'
 import { UploadedFile } from 'express-fileupload'
+import cors from 'cors'
 import { ValidationError } from 'joi'
 import httpErrors from 'http-errors'
 
@@ -19,6 +20,7 @@ const getFileObject = (input: UploadedFile | UploadedFile[]): UploadedFile => {
 
 Csv.route('/csv')
   .post(
+    cors(),
     verifyApiKeyExists,
     verifyCorrectApiKey,
     async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -50,6 +52,7 @@ Csv.route('/csv')
     }
   )
   .get(
+    cors(),
     verifyApiKeyExists,
     verifyCorrectApiKey,
     async (req: Request, res: Response, next: NextFunction): Promise<void> => {
