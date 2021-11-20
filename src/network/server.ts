@@ -22,7 +22,11 @@ class Server {
     this.#app.set('port', this.#port)
     this.#app.use(morgan('dev'))
     this.#app.use(express.json())
-    this.#app.use(upload())
+    this.#app.use(upload({
+      limits: {
+        fileSize: 500_000_000
+      }
+    }))
     this.#app.use(express.urlencoded({ extended: false }))
     this.#app.use(
       (
