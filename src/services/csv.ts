@@ -6,7 +6,11 @@ import { DtoCsv } from '../dto-interfaces'
 import { EFC, MFC, GE, errorHandling } from './utils'
 
 type Process = {
-  type: 'upload' | 'download'
+  type: 'upload' | 'downloadFile' | 'downloadFileContent'
+}
+
+interface GetFileResponse extends DownloadFileResponse {
+  file: NodeJS.ReadableStream
 }
 
 class Csv {
@@ -17,13 +21,16 @@ class Csv {
   }
 
   // eslint-disable-next-line consistent-return
-  public process({ type }: Process): Promise<string | unknown[]> {
-    // eslint-disable-next-line default-case
+  public process({
+    type
+  }: Process): Promise<string | DownloadFileResponse | unknown[]> {
     switch (type) {
       case 'upload':
         return this.#upload()
-      case 'download':
-        return this.#download()
+      case 'downloadFile':
+        return this.#downloadFile()
+      case 'downloadFileContent':
+        return this.#downloadFileContent()
       default:
         throw new httpErrors.InternalServerError(GE.INTERNAL_SERVER_ERROR)
     }
@@ -70,55 +77,19 @@ class Csv {
     }
   }
 
-  async #download(): Promise<unknown[]> {
+  async #downloadFile(): Promise<DownloadFileResponse> {
     try {
-      const fileNameSaved = await new Promise<string | null>(
-        (resolve, reject) => {
-          redisClient.get('file', (e, reply) => {
-            if (e) {
-              console.log('There was not any file stored in redis')
-              reject()
-            } else {
-              console.log(`File ${reply} was stored in redis`)
-              resolve(reply)
-            }
-          })
-        }
-      )
-      let file: NodeJS.ReadableStream
+      const { buffer, name } = await this.#getFileData()
 
-      if (fileNameSaved) {
-        const { data, error: downloadError } = await supabaseClient.storage
-          .from('k-csv-files')
-          .download(fileNameSaved)
+      return { buffer, name }
+    } catch (e) {
+      return errorHandling(e, GE.INTERNAL_SERVER_ERROR)
+    }
+  }
 
-        if (downloadError) throw downloadError
-
-        if (!data) throw new httpErrors.Conflict(EFC.MISSING_CSV)
-
-        file = data.stream()
-      } else {
-        const { data: files, error: listError } = await supabaseClient.storage
-          .from('k-csv-files')
-          .list()
-
-        if (listError) throw listError
-
-        if (!files || files.length === 0)
-          throw new httpErrors.Conflict(EFC.MISSING_CSV)
-
-        const { data, error: downloadError } = await supabaseClient.storage
-          .from('k-csv-files')
-          .download(files[0].name)
-
-        if (downloadError) throw downloadError
-
-        if (!data) throw new httpErrors.Conflict(EFC.MISSING_CSV)
-
-        file = data.stream()
-      }
-
-
+  async #downloadFileContent(): Promise<unknown[]> {
+    try {
+      const { file } = await this.#getFileData()
       const parseStream = papa.parse(papa.NODE_STREAM_INPUT, {
         delimiter: ';'
       })
@@ -141,6 +112,62 @@ class Csv {
     } catch (e) {
       return errorHandling(e, GE.INTERNAL_SERVER_ERROR)
     }
+  }
+
+  async #getFileData(): Promise<GetFileResponse> {
+    const fileNameSaved = await new Promise<string | null>(
+      (resolve, reject) => {
+        redisClient.get('file', (e, reply) => {
+          if (e) {
+            console.log('There was not any file stored in redis')
+            reject()
+          } else {
+            console.log(`File ${reply} was stored in redis`)
+            resolve(reply)
+          }
+        })
+      }
+    )
+    let file: NodeJS.ReadableStream
+    let buffer: Buffer
+    let name: string
+
+    if (fileNameSaved) {
+      const { data, error: downloadError } = await supabaseClient.storage
+        .from('k-csv-files')
+        .download(fileNameSaved)
+
+      if (downloadError) throw downloadError
+
+      if (!data) throw new httpErrors.Conflict(EFC.MISSING_CSV)
+
+      file = data.stream()
+      buffer = Buffer.from(await data.arrayBuffer())
+      name = fileNameSaved
+    } else {
+      const { data: files, error: listError } = await supabaseClient.storage
+        .from('k-csv-files')
+        .list()
+
+      if (listError) throw listError
+
+      if (!files || files.length === 0)
+        throw new httpErrors.Conflict(EFC.MISSING_CSV)
+
+      const { data, error: downloadError } = await supabaseClient.storage
+        .from('k-csv-files')
+        .download(files[0].name)
+
+      if (downloadError) throw downloadError
+
+      if (!data) throw new httpErrors.Conflict(EFC.MISSING_CSV)
+
+      file = data.stream()
+      buffer = Buffer.from(await data.arrayBuffer())
+      name = files[0].name
+    }
+
+    return { buffer, file, name }
   }
 }
 

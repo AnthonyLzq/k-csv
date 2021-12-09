@@ -58,9 +58,34 @@ Csv.route('/csv')
     async (req: Request, res: Response, next: NextFunction): Promise<void> => {
       try {
         const csv = new CsvC()
-        const result = await csv.process({ type: 'download' })
+        const result = await csv.process({ type: 'downloadFileContent' })
 
         response(false, result, res, 200)
+      } catch (e) {
+        if (e instanceof ValidationError)
+          return next(new httpErrors.UnprocessableEntity(e.message))
+
+        next(e)
+      }
+    }
+  )
+
+Csv.route('/csvFile')
+  .get(
+    cors(),
+    verifyApiKeyExists,
+    verifyCorrectApiKey,
+    async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+      try {
+        const csv = new CsvC()
+        const result = await csv.process({ type: 'downloadFile' }) as DownloadFileResponse
+
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="${result.name}.csv"`
+        )
+        res.setHeader('Content-Type', 'application/csv')
+        res.status(200).send(result.buffer)
       } catch (e) {
         if (e instanceof ValidationError)
           return next(new httpErrors.UnprocessableEntity(e.message))
