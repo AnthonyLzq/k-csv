@@ -84,7 +84,7 @@ Csv.route('/csvFile')
           'Content-Disposition',
           `attachment; filename="${result.name}.csv"`
         )
-        res.setHeader('Content-Type', 'application/csv')
+        res.setHeader('Content-Type', 'text/csv')
         res.status(200).send(result.buffer)
       } catch (e) {
         if (e instanceof ValidationError)

@@ -34,10 +34,15 @@ class Server {
         res: express.Response,
         next: express.NextFunction
       ) => {
-        res.header('Access-Control-Allow-Headers', ['api-key', 'content-type'])
+        res.header('Access-Control-Allow-Headers', [
+          'api-key',
+          'content-type',
+          'content-disposition'
+        ])
         res.header('X-Powered-By', 'Blood, sweat, and tears')
         res.header('Access-Control-Allow-Methods', 'GET, POST')
         res.header('Access-Control-Allow-Origin', '*')
+        res.header('Access-Control-Expose-Headers', 'content-disposition')
         next()
       }
     )
