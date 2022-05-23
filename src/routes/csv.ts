@@ -37,10 +37,11 @@ Csv.route('/csv')
             name    : fileObj.name,
             size    : fileObj.size
           }
+          await csvSchema.validateAsync(fileToUpload)
+
           const csv = new CsvC(fileToUpload)
           const result = await csv.process({ type: 'upload' })
 
-          await csvSchema.validateAsync(fileToUpload)
           response(false, result, res, 201)
         } catch (e) {
           if (e instanceof ValidationError)
