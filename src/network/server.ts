@@ -10,11 +10,11 @@ import { applyRoutes } from './routes'
 
 class Server {
   #app : express.Application
-  #port: string
+  #port: number
 
   constructor() {
     this.#app = express()
-    this.#port = process.env.PORT as string || '1996'
+    this.#port = process.env.PORT ? parseInt(process.env.PORT) : 1996
     this.#config()
   }
 
@@ -50,7 +50,7 @@ class Server {
   }
 
   public start(): void {
-    this.#app.listen(this.#port, () =>
+    this.#app.listen(this.#port, '127.0.0.1', () =>
       console.log(`Server running at port ${this.#port}.`)
     )
 
